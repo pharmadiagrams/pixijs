@@ -1,6 +1,6 @@
 var V1=Object.defineProperty;var rd=Object.getOwnPropertySymbols;var W1=Object.prototype.hasOwnProperty,Y1=Object.prototype.propertyIsEnumerable;var sd=(r,t,e)=>t in r?V1(r,t,{enumerable:!0,configurable:!0,writable:!0,value:e}):r[t]=e,id=(r,t)=>{for(var e in t||(t={}))W1.call(t,e)&&sd(r,e,t[e]);if(rd)for(var e of rd(t))Y1.call(t,e)&&sd(r,e,t[e]);return r};/*!
  * PixiJS - v8.16.0
- * Compiled Fri, 13 Feb 2026 19:22:31 UTC
+ * Compiled Fri, 13 Feb 2026 21:14:56 UTC
  *
  * PixiJS is licensed under the MIT License.
  * http://www.opensource.org/licenses/mit-license
