@@ -32,23 +32,28 @@ function syncShader(renderer: WebGLRenderer, shader: Shader, syncData: ShaderSyn
             {
                 if (resource.ubo)
                 {
+                    const resName = shader._uniformBindMap[i as unknown as number][j as unknown as number];
+
                     shaderSystem.bindUniformBlock(
                         resource,
-                        shader._uniformBindMap[i as unknown as number][j as unknown as number],
-                        syncData.blockIndex++
+                        resName,
+                        shader.glProgram._uniformBlockData[resName].index
                     );
                 }
                 else
                 {
-                    shaderSystem.updateUniformGroup(resource);
+                    // Must call uniformGroup system directly with syncData to track texture counts
+                    renderer.uniformGroup.updateUniformGroup(resource, shader.glProgram, syncData);
                 }
             }
             else if (resource instanceof BufferResource)
             {
+                const resName = shader._uniformBindMap[i as unknown as number][j as unknown as number];
+
                 shaderSystem.bindUniformBlock(
                     resource,
-                    shader._uniformBindMap[i as unknown as number][j as unknown as number],
-                    syncData.blockIndex++
+                    resName,
+                    shader.glProgram._uniformBlockData[resName].index
                 );
             }
             else if (resource instanceof TextureSource)

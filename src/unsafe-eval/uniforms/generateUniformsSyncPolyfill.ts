@@ -1,11 +1,19 @@
+import { BufferResource } from '../../rendering/renderers/shared/buffer/BufferResource';
+import { UniformGroup } from '../../rendering/renderers/shared/shader/UniformGroup';
 import { uniformParsers } from '../../rendering/renderers/shared/shader/utils/uniformParsers';
 import { uniformArrayParserFunctions, uniformParserFunctions, uniformSingleParserFunctions } from './uniformSyncFunctions';
 
 import type { GlUniformData } from '../../rendering/renderers/gl/shader/GlProgram';
 import type { WebGLRenderer } from '../../rendering/renderers/gl/WebGLRenderer';
 import type { UniformsSyncCallback } from '../../rendering/renderers/shared/shader/types';
-import type { UniformGroup } from '../../rendering/renderers/shared/shader/UniformGroup';
+import type { UniformGroup as UniformGroupType } from '../../rendering/renderers/shared/shader/UniformGroup';
 import type { UniformUploadFunction } from './uniformSyncFunctions';
+
+interface NestedResource
+{
+    name: string;
+    type: 'uniformGroupUbo' | 'uniformGroupNonUbo' | 'bufferResource';
+}
 
 /**
  * @param group
@@ -13,16 +21,40 @@ import type { UniformUploadFunction } from './uniformSyncFunctions';
  * @internal
  */
 export function generateUniformsSyncPolyfill(
-    group: UniformGroup,
+    group: UniformGroupType,
     uniformData: Record<string, GlUniformData>
 ): UniformsSyncCallback
 {
     // loop through all the uniforms..
     const functionMap: Record<string, UniformUploadFunction> = {};
+    const nestedResources: NestedResource[] = [];
 
-    for (const i in group.uniformStructures)
+    // Iterate group.uniforms to match the original implementation
+    for (const i in group.uniforms)
     {
-        if (!uniformData[i]) continue;
+        if (!uniformData[i])
+        {
+            // Handle nested UniformGroup and BufferResource
+            const uniform = group.uniforms[i];
+
+            if (uniform instanceof UniformGroup)
+            {
+                if ((uniform as UniformGroupType).ubo)
+                {
+                    nestedResources.push({ name: i, type: 'uniformGroupUbo' });
+                }
+                else
+                {
+                    nestedResources.push({ name: i, type: 'uniformGroupNonUbo' });
+                }
+            }
+            else if (uniform instanceof BufferResource)
+            {
+                nestedResources.push({ name: i, type: 'bufferResource' });
+            }
+
+            continue;
+        }
 
         const uniform = group.uniformStructures[i];
 
@@ -55,10 +87,32 @@ export function generateUniformsSyncPolyfill(
     return (
         ud: Record<string, any>,
         uv: Record<string, any>,
-        renderer: WebGLRenderer) =>
+        renderer: WebGLRenderer,
+        _syncData: { textureCount: number }) =>
     {
         const gl = renderer.gl;
 
+        // Handle nested UniformGroups and BufferResources first
+        for (let k = 0; k < nestedResources.length; k++)
+        {
+            const nested = nestedResources[k];
+            const resource = uv[nested.name];
+
+            if (nested.type === 'uniformGroupUbo')
+            {
+                renderer.shader.bindUniformBlock(resource, nested.name);
+            }
+            else if (nested.type === 'uniformGroupNonUbo')
+            {
+                renderer.shader.updateUniformGroup(resource);
+            }
+            else if (nested.type === 'bufferResource')
+            {
+                renderer.shader.bindUniformBlock(resource, nested.name);
+            }
+        }
+
+        // Handle regular uniforms
         for (const i in functionMap)
         {
             const v = uv[i];
